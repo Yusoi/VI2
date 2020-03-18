@@ -42,7 +42,7 @@ static __forceinline__ __device__ T *getPRD()
 
 //closest hit glass
 extern "C" __global__ void __closesthit__glass() {
-    /*
+    
     const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
     // compute triangle normal:
     const int primID = optixGetPrimitiveIndex();
@@ -52,7 +52,7 @@ extern "C" __global__ void __closesthit__glass() {
     const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
     const float3 Ng = normalize(cross(B-A,C-A)) * 0.5 + 0.5;
     float3 &prd = *(float3*)getPRD<float3>();
-    prd = Ng;*/
+    prd = Ng;
 }
 
 //any hit glass
@@ -65,7 +65,7 @@ extern "C" __global__ void __miss__glass() {
 
 }
 
-/*
+
 //closest hit fence
 extern "C" __global__ void __closesthit__fence() {
 
@@ -79,7 +79,7 @@ extern "C" __global__ void __anyhit__fence() {
 //miss fence
 extern "C" __global__ void __miss__fence() {
 
-}*/
+}
 
 //Ray Deployment
 extern "C" __global__ void __raygen__renderFrame() {
@@ -97,7 +97,7 @@ extern "C" __global__ void __raygen__renderFrame() {
     const float2 screen(make_float2(ix+.5f,iy+.5f)
                         / make_float2(optixGetLaunchDimensions().x, optixGetLaunchDimensions().y) * 2.0 - 1.0);
     // note: nau already takes into account the field of view when computing
-    // camera horizontal and vertival
+    // camera horizontal and vertical
     float3 rayDir = normalize(camera.direction
                               + screen.x * camera.horizontal
                               + screen.y * camera.vertical);

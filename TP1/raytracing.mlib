@@ -9,7 +9,6 @@
 		</renderTarget>
 	</renderTargets>
 
-
 	<textures>
 		<texture name="dataBuffer">
 			<WIDTH value=256 />
