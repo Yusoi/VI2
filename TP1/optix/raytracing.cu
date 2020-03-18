@@ -2,16 +2,15 @@
 #include "LaunchParams.h"
 #include <vec_math.h>
 
-/*
+/* Compile with:
 nvcc.exe -O3 -use_fast_math -arch=compute_30 -code=sm_30 -I "C:\ProgramData\NVIDIA Corporation\OptiX SDK 7.0.0\include" -I "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\include" -I "." -m 64 -ptx -ccbin "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64" raytracing.cu -o raytracing.ptx
-
 */
 
 /*! launch parameters in constant memory, filled in by optix upon
     optixLaunch (this gets filled in from the buffer we pass to
     optixLaunch) */
 extern "C" {
-  __constant__ LaunchParams optixLaunchParams;
+    __constant__ LaunchParams optixLaunchParams;
 }
 
 // for this simple example, we have a single ray type
@@ -20,29 +19,30 @@ enum { SURFACE_RAY_TYPE=0, RAY_TYPE_COUNT };
 static __forceinline__ __device__
 void *unpackPointer( uint32_t i0, uint32_t i1 )
 {
-  const uint64_t uptr = static_cast<uint64_t>( i0 ) << 32 | i1;
-  void*           ptr = reinterpret_cast<void*>( uptr ); 
-  return ptr;
+    const uint64_t uptr = static_cast<uint64_t>( i0 ) << 32 | i1;
+    void*           ptr = reinterpret_cast<void*>( uptr ); 
+    return ptr;
 }
 
 static __forceinline__ __device__
 void  packPointer( void* ptr, uint32_t& i0, uint32_t& i1 )
 {
-  const uint64_t uptr = reinterpret_cast<uint64_t>( ptr );
-  i0 = uptr >> 32;
-  i1 = uptr & 0x00000000ffffffff;
+    const uint64_t uptr = reinterpret_cast<uint64_t>( ptr );
+    i0 = uptr >> 32;
+    i1 = uptr & 0x00000000ffffffff;
 }
 
 template<typename T>
 static __forceinline__ __device__ T *getPRD()
 { 
-  const uint32_t u0 = optixGetPayload_0();
-  const uint32_t u1 = optixGetPayload_1();
-  return reinterpret_cast<T*>( unpackPointer( u0, u1 ) );
+    const uint32_t u0 = optixGetPayload_0();
+    const uint32_t u1 = optixGetPayload_1();
+    return reinterpret_cast<T*>( unpackPointer( u0, u1 ) );
 }
 
 //closest hit glass
 extern "C" __global__ void __closesthit__glass() {
+    /*
     const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
     // compute triangle normal:
     const int primID = optixGetPrimitiveIndex();
@@ -52,7 +52,7 @@ extern "C" __global__ void __closesthit__glass() {
     const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
     const float3 Ng = normalize(cross(B-A,C-A)) * 0.5 + 0.5;
     float3 &prd = *(float3*)getPRD<float3>();
-    prd = Ng;
+    prd = Ng;*/
 }
 
 //any hit glass
@@ -64,6 +64,22 @@ extern "C" __global__ void __anyhit__glass() {
 extern "C" __global__ void __miss__glass() {
 
 }
+
+/*
+//closest hit fence
+extern "C" __global__ void __closesthit__fence() {
+
+}
+
+//any hit fence
+extern "C" __global__ void __anyhit__fence() {
+
+}
+
+//miss fence
+extern "C" __global__ void __miss__fence() {
+
+}*/
 
 //Ray Deployment
 extern "C" __global__ void __raygen__renderFrame() {
@@ -116,7 +132,7 @@ extern "C" __global__ void __raygen__renderFrame() {
         // print info to console
         printf("===========================================\n");
         printf("Nau Ray-Tracing Hello World\n");
-        printf("Lunch size: %i x %i\n", ix, iy);
+        printf("Launch size: %i x %i\n", ix, iy);
         printf("Camera Direction: %f %f %f\n",
         optixLaunchParams.camera.direction.x,
         optixLaunchParams.camera.direction.y,
