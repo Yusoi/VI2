@@ -54,8 +54,8 @@
 
 				
 				<rtRayTypes>
-					<rayType name="Glass"/>
-					<!--<rayType name="Fence"/>-->
+					<rayType name="Fence" />
+					<rayType name="Glass" />
 				</rtRayTypes>
 
 				<rtVertexAttributes>
@@ -67,20 +67,49 @@
 				<rtEntryPoint>
 					<rayGen file="optix/raytracing.ptx" proc="__raygen__renderFrame"/> 
 				</rtEntryPoint>
-
-				
 				<rtDefaultMaterial>
-					<rayType name="Glass">
-						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__glass"/> 
-						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__glass"/> 
-						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__glass"/> 
+					<rayType name="Lambert">
+						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__lambert"/> 
+						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__lambert"/> 
+						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__lambert"/> 
 					</rayType>
-					<!--<rayType name="Fence">
-						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__fence" /> 
-						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__fence" /> 
-						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__fence" /> 
-					</rayType>-->
+					<<rayType name="Phong">
+						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__phong" /> 
+						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__phong" /> 
+						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__phong" /> 
+					</rayType>>
 				</rtDefaultMaterial>
+
+				<rtMaterialMap>
+                    <rtMap to = "Grade*">
+						<!-- Diffuse + Ambient -->
+						<rayType name="Lambert">
+                            <rtProgram type="ANY_HIT" file="optix/testOptix6.ptx" proc="__anyhit__shadow_alphaTrans"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/testOptix6.ptx" proc="__closesthit__shadow_alphaTrans"/> 
+                            <rtProgram type="MISS" 		 file="optix/testOptix6.ptx" proc="__miss__shadow_alphaTrans"/> 
+                        </rayType>
+
+						<!-- Specular -->
+                        <rayType name="Phong">
+                            <rtProgram type="ANY_HIT" file="optix/testOptix6.ptx" proc="__anyhit__phong_alphaTrans"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/testOptix6.ptx" proc="__closesthit__phong_alphaTrans"/> 
+                            <rtProgram type="MISS" 		 file="optix/testOptix6.ptx" proc="__miss__phong_alphaTrans"/> 
+                        </rayType>
+                        
+                    </rtMap>
+                    <rtMap to = "Vidro">
+                        <rayType name="Phong">
+                            <rtProgram type="ANY_HIT" file="optix/testOptix6.ptx" proc="__anyhit__phong_glass"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/testOptix6.ptx" proc="__closesthit__phong_glass"/> 
+                            <rtProgram type="MISS" 		 file="optix/testOptix6.ptx" proc="__miss__phong_glass"/> 
+                        </rayType>
+                        <rayType name="Shadow">
+                            <rtProgram type="ANY_HIT" file="optix/testOptix6.ptx" proc="__anyhit__shadow_glass"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/testOptix6.ptx" proc="__closesthit__shadow_glass"/> 
+                            <rtProgram type="MISS" 		 file="optix/testOptix6.ptx" proc="__miss__shadow_glass"/> 
+                        </rayType>
+                    </rtMap>
+                </rtMaterialMap>
 			</pass>
 
 			<pass class="quad" name="pass2">

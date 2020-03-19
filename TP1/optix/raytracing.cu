@@ -40,8 +40,8 @@ static __forceinline__ __device__ T *getPRD()
     return reinterpret_cast<T*>( unpackPointer( u0, u1 ) );
 }
 
-//closest hit glass
-extern "C" __global__ void __closesthit__glass() {
+//closest hit lambert
+extern "C" __global__ void __closesthit__lambert() {
     
     const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
     // compute triangle normal:
@@ -55,29 +55,28 @@ extern "C" __global__ void __closesthit__glass() {
     prd = Ng;
 }
 
-//any hit glass
-extern "C" __global__ void __anyhit__glass() {
+//any hit lambert
+extern "C" __global__ void __anyhit__lambert() {
 
 }
 
-//miss glass
-extern "C" __global__ void __miss__glass() {
+//miss lambert
+extern "C" __global__ void __miss__lambert() {
 
 }
 
-
-//closest hit fence
-extern "C" __global__ void __closesthit__fence() {
-
-}
-
-//any hit fence
-extern "C" __global__ void __anyhit__fence() {
+//closest hit phong
+extern "C" __global__ void __closesthit__phong() {
 
 }
 
-//miss fence
-extern "C" __global__ void __miss__fence() {
+//any hit phong
+extern "C" __global__ void __anyhit__phong() {
+
+}
+
+//miss phong
+extern "C" __global__ void __miss__phong() {
 
 }
 
