@@ -42,17 +42,72 @@ static __forceinline__ __device__ T *getPRD()
 
 //closest hit lambert
 extern "C" __global__ void __closesthit__lambert() {
-    
     const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
-    // compute triangle normal:
+
+    // gather basic info
     const int primID = optixGetPrimitiveIndex();
     const uint3 index = sbtData.index[primID];
+    const float u = optixGetTriangleBarycentrics().x;
+    const float v = optixGetTriangleBarycentrics().y;
+
+
+    // compute triangle normal using either shading normal or gnormal as fallback:
     const float3 &A = make_float3(sbtData.vertexD.position[index.x]);
     const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
     const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
-    const float3 Ng = normalize(cross(B-A,C-A)) * 0.5 + 0.5;
-    float3 &prd = *(float3*)getPRD<float3>();
-    prd = Ng;
+
+    vec3f Ng = cross(B-A,C-A);
+    if(sbtData) 
+        Ns = ((1.f-u-v) * sbtData.normal[index.x] + u * sbtData.normal[index.y] + v * sbtData.normal[index.z]);
+    else 
+        Ns = Ng;
+    
+    // Face forward + Normalization
+    const vec3f rayDir = optixGetWorldRayDirection();
+    
+    if (dot(rayDir,Ng) > 0.f) Ng = -Ng;
+    Ng = normalize(Ng);
+    
+    if (dot(Ng,Ns) < 0.f) Ns -= 2.f*dot(Ng,Ns)*Ng;
+    Ns = normalize(Ns);
+
+    // Lambert Diffuse
+    vec3f diffuseColor = sbtData.color;
+    if (sbtData.hasTexture && sbtData.texcoord) {
+      const vec2f tc = (1.f-u-v) * sbtData.texcoord[index.x] + u * sbtData.texcoord[index.y] + v * sbtData.texcoord[index.z];
+      vec4f fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
+      diffuseColor *= (vec3f)fromTexture;
+    }
+
+    // Shadow
+    const vec3f surfPos = (1.f-u-v) * sbtData.vertex[index.x] + u * sbtData.vertex[index.y] + v * sbtData.vertex[index.z];
+    const vec3f lightPos(-907.108f, 2205.875f, -400.0267f);
+    const vec3f lightDir = lightPos - surfPos;
+
+    // Trace Shadow Ray
+    vec3f lightVisibility = 0.f;
+
+    uint32_t u0, u1;
+    packPointer( &lightVisibility, u0, u1 );
+    optixTrace(optixLaunchParams.traversable,
+               surfPos + 1e-3f * Ng,
+               lightDir,
+               1e-3f,      // tmin
+               1.f-1e-3f,  // tmax
+               0.0f,       // rayTime
+               OptixVisibilityMask( 255 ),
+               OPTIX_RAY_FLAG_DISABLE_ANYHIT
+               | OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT
+               | OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
+               SHADOW_RAY_TYPE,            // SBT offset
+               RAY_TYPE_COUNT,               // SBT stride
+               SHADOW_RAY_TYPE,            // missSBTIndex 
+               u0, u1 );
+
+    // Final shading: ambient, directional ambient and shadowing
+    const float cosDN = 0.1f + .8f*fabsf(dot(rayDir,Ns));
+    vec3f &prd = *(vec3f*)getPRD<vec3f>();
+    prd = (.1f + (.2f + .8f*lightVisibility) * cosDN) * diffuseColor;
 }
 
 //any hit lambert
