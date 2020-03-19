@@ -80,6 +80,66 @@ extern "C" __global__ void __miss__phong() {
 
 }
 
+//closest hit lambert para grades
+extern "C" __global__ void __closesthit__lambert_grade() {
+
+}
+
+//any hit lambert para grades
+extern "C" __global__ void __anyhit__lambert_grade() {
+
+}
+
+//miss lambert para grades
+extern "C" __global__ void __miss__lambert_grade() {
+    
+}
+
+//closest hit phong para grades
+extern "C" __global__ void __closesthit__phong_grade() {
+
+}
+
+//any hit phong para grades
+extern "C" __global__ void __anyhit__phong_grade() {
+
+}
+
+//miss phong para grades
+extern "C" __global__ void __miss__phong_grade() {
+
+}
+
+//closest hit lambert para vidros
+extern "C" __global__ void __closesthit__lambert_vidro() {
+
+}
+
+//any hit lambert para vidros
+extern "C" __global__ void __anyhit__lambert_vidro() {
+
+}
+
+//miss lambert para vidros
+extern "C" __global__ void __miss__lambert_vidro() {
+    
+}
+
+//closest hit phong para vidros
+extern "C" __global__ void __closesthit__phong_vidro() {
+
+}
+
+//any hit phong para vidros
+extern "C" __global__ void __anyhit__phong_vidro() {
+
+}
+
+//miss phong para vidros
+extern "C" __global__ void __miss__phong_vidro() {
+
+}
+
 //Ray Deployment
 extern "C" __global__ void __raygen__renderFrame() {
 
