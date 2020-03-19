@@ -3,7 +3,7 @@
 	<assets>
 		<scenes>
 			<scene name="MainScene" >
-				<file name="../models/dragon/dragon.obj" />
+				<file name="../models/LargoCamoes/largoCamoes.nbo" />
 			</scene>
 		</scenes>
 		<viewports>
@@ -21,9 +21,9 @@
 		<cameras>
 			<camera name="MainCamera" >
 				<viewport name="LeftViewport" />
-				<projection TYPE="PERSPECTIVE" FOV=60.0 NEAR=0.3 FAR=1000.0 />
-				<POSITION x="-2.0" y="1.8" z="0.0" />
-				<VIEW x="0.901307" y="-1.0" z="-0.238421" /> 
+				<projection TYPE="PERSPECTIVE" FOV=60.0 NEAR=1.0 FAR=10000.0 />
+				<POSITION x="-40.593395" y="32.43354" z="-1.299236" />
+				<VIEW x="0.901307" y="-0.361665" z="-0.238421" /> 
 				<UP x="0.0" y="1.0" z="0.0" />
 			</camera>
 		</cameras>
@@ -52,10 +52,9 @@
 					<light name="Sun" />
 				</lights>
 
-				
 				<rtRayTypes>
-					<rayType name="Fence" />
-					<rayType name="Glass" />
+					<rayType name="Lambert" />
+					<rayType name="Phong" />
 				</rtRayTypes>
 
 				<rtVertexAttributes>
@@ -68,16 +67,19 @@
 					<rayGen file="optix/raytracing.ptx" proc="__raygen__renderFrame"/> 
 				</rtEntryPoint>
 				<rtDefaultMaterial>
+					<!-- Diffuse + Ambient -->
 					<rayType name="Lambert">
 						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__lambert"/> 
 						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__lambert"/> 
 						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__lambert"/> 
 					</rayType>
-					<<rayType name="Phong">
+
+					<!-- Specular -->
+					<rayType name="Phong">
 						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__phong" /> 
 						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__phong" /> 
 						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__phong" /> 
-					</rayType>>
+					</rayType>
 				</rtDefaultMaterial>
 
 				<rtMaterialMap>
@@ -97,11 +99,14 @@
                         </rayType>
                     </rtMap>
                     <rtMap to = "Vidro">
+						<!-- Diffuse + Ambient -->
                         <rayType name="Lambert">
                             <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__lambert_vidro"/> 
                             <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__lambert_vidro"/> 
                             <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__lambert_vidro"/> 
                         </rayType>
+
+						<!-- Specular -->
                         <rayType name="Phong">
                             <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__phong_vidro"/> 
                             <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__phong_vidro"/> 
