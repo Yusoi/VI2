@@ -53,8 +53,8 @@
 				</lights>
 
 				<rtRayTypes>
-					<rayType name="Lambert" />
 					<rayType name="Phong" />
+					<rayType name="Shadow" />
 				</rtRayTypes>
 
 				<rtVertexAttributes>
@@ -67,50 +67,44 @@
 					<rayGen file="optix/raytracing.ptx" proc="__raygen__renderFrame"/> 
 				</rtEntryPoint>
 				<rtDefaultMaterial>
-					<!-- Diffuse + Ambient -->
-					<rayType name="Lambert">
-						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__lambert"/> 
-						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__lambert"/> 
-						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__lambert"/> 
+					<rayType name="Phong">
+						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__radiance"/> 
+						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__radiance"/> 
+						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__radiance"/> 
 					</rayType>
 
-					<!-- Specular -->
-					<rayType name="Phong">
-						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__phong" /> 
-						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__phong" /> 
-						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__phong" /> 
+					<rayType name="Shadow">
+						<rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__shadow" /> 
+						<rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__shadow" /> 
+						<rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__shadow" /> 
 					</rayType>
 				</rtDefaultMaterial>
 
 				<rtMaterialMap>
                     <rtMap to = "Grade*">
-						<!-- Diffuse + Ambient -->
-						<rayType name="Lambert">
-                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__lambert_grade"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__lambert_grade"/> 
-                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__lambert_grade"/> 
+						<rayType name="Phong">
+                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__radiance_grade"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__radiance_grade"/> 
+                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__radiance_grade"/> 
                         </rayType>
 
-						<!-- Specular -->
-                        <rayType name="Phong">
-                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__phong_grade"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__phong_grade"/> 
-                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__phong_grade"/> 
+                        <rayType name="Shadow">
+                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__shadow_grade"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__shadow_grade"/> 
+                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__shadow_grade"/> 
                         </rayType>
                     </rtMap>
                     <rtMap to = "Vidro">
-						<!-- Diffuse + Ambient -->
-                        <rayType name="Lambert">
-                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__lambert_vidro"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__lambert_vidro"/> 
-                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__lambert_vidro"/> 
+                        <rayType name="Phong">
+                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__radiance_vidro"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__radiance_vidro"/> 
+                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__radiance_vidro"/> 
                         </rayType>
 
-						<!-- Specular -->
-                        <rayType name="Phong">
-                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__phong_vidro"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__phong_vidro"/> 
-                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__phong_vidro"/> 
+                        <rayType name="Shadow">
+                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__shadow_vidro"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__shadow_vidro"/> 
+                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__shadow_vidro"/> 
                         </rayType>
                     </rtMap>
                 </rtMaterialMap>

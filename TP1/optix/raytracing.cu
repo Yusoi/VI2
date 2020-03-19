@@ -14,7 +14,7 @@ extern "C" {
 }
 
 // for this simple example, we have a single ray type
-enum { SURFACE_RAY_TYPE=0, RAY_TYPE_COUNT };
+enum { PHONG_RAY_TYPE = 0, SHADOW_RAY_TYPE,  RAY_TYPE_COUNT };
 
 static __forceinline__ __device__
 void *unpackPointer( uint32_t i0, uint32_t i1 )
@@ -40,8 +40,8 @@ static __forceinline__ __device__ T *getPRD()
     return reinterpret_cast<T*>( unpackPointer( u0, u1 ) );
 }
 
-//closest hit lambert
-extern "C" __global__ void __closesthit__lambert() {
+//closest hit radiance
+extern "C" __global__ void __closesthit__radiance() {
     const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
 
     // gather basic info
@@ -52,18 +52,19 @@ extern "C" __global__ void __closesthit__lambert() {
 
 
     // compute triangle normal using either shading normal or gnormal as fallback:
-    const float3 &A = make_float3(sbtData.vertexD.position[index.x]);
-    const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
-    const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
+    const float3 &A = sbtData.vertex[index.x];
+    const float3 &B = sbtData.vertex[index.y];
+    const float3 &C = sbtData.vertex[index.z];
 
-    vec3f Ng = cross(B-A,C-A);
-    if(sbtData) 
+    float3 Ns;
+    float3 Ng = cross(B-A,C-A);
+    if(sbtData.normal) 
         Ns = ((1.f-u-v) * sbtData.normal[index.x] + u * sbtData.normal[index.y] + v * sbtData.normal[index.z]);
     else 
         Ns = Ng;
     
     // Face forward + Normalization
-    const vec3f rayDir = optixGetWorldRayDirection();
+    const float3 rayDir = optixGetWorldRayDirection();
     
     if (dot(rayDir,Ng) > 0.f) Ng = -Ng;
     Ng = normalize(Ng);
@@ -72,20 +73,20 @@ extern "C" __global__ void __closesthit__lambert() {
     Ns = normalize(Ns);
 
     // Lambert Diffuse
-    vec3f diffuseColor = sbtData.color;
+    float3 diffuseColor = sbtData.color;
     if (sbtData.hasTexture && sbtData.texcoord) {
-      const vec2f tc = (1.f-u-v) * sbtData.texcoord[index.x] + u * sbtData.texcoord[index.y] + v * sbtData.texcoord[index.z];
-      vec4f fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
-      diffuseColor *= (vec3f)fromTexture;
+      const float2 tc = (1.f-u-v) * sbtData.texcoord[index.x] + u * sbtData.texcoord[index.y] + v * sbtData.texcoord[index.z];
+      float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
+      diffuseColor *= make_float3(fromTexture);
     }
 
     // Shadow
-    const vec3f surfPos = (1.f-u-v) * sbtData.vertex[index.x] + u * sbtData.vertex[index.y] + v * sbtData.vertex[index.z];
-    const vec3f lightPos(-907.108f, 2205.875f, -400.0267f);
-    const vec3f lightDir = lightPos - surfPos;
+    const float3 surfPos = (1.f-u-v) * sbtData.vertex[index.x] + u * sbtData.vertex[index.y] + v * sbtData.vertex[index.z];
+    const float3 lightPos = make_float3(-907.108f, 2205.875f, -400.0267f);
+    const float3 lightDir = lightPos - surfPos;
 
     // Trace Shadow Ray
-    vec3f lightVisibility = 0.f;
+    float3 lightVisibility = make_float3(0.f,0.f,0.f);
 
     uint32_t u0, u1;
     packPointer( &lightVisibility, u0, u1 );
@@ -106,92 +107,92 @@ extern "C" __global__ void __closesthit__lambert() {
 
     // Final shading: ambient, directional ambient and shadowing
     const float cosDN = 0.1f + .8f*fabsf(dot(rayDir,Ns));
-    vec3f &prd = *(vec3f*)getPRD<vec3f>();
+    float3 &prd = *(float3*)getPRD<float3>();
     prd = (.1f + (.2f + .8f*lightVisibility) * cosDN) * diffuseColor;
 }
 
-//any hit lambert
-extern "C" __global__ void __anyhit__lambert() {
+//any hit radiance
+extern "C" __global__ void __anyhit__radiance() {
 
 }
 
-//miss lambert
-extern "C" __global__ void __miss__lambert() {
+//miss radiance
+extern "C" __global__ void __miss__radiance() {
 
 }
 
-//closest hit phong
-extern "C" __global__ void __closesthit__phong() {
+//closest hit shadow
+extern "C" __global__ void __closesthit__shadow() {
 
 }
 
-//any hit phong
-extern "C" __global__ void __anyhit__phong() {
+//any hit shadow
+extern "C" __global__ void __anyhit__shadow() {
 
 }
 
-//miss phong
-extern "C" __global__ void __miss__phong() {
+//miss shadow
+extern "C" __global__ void __miss__shadow() {
 
 }
 
-//closest hit lambert para grades
-extern "C" __global__ void __closesthit__lambert_grade() {
+//closest hit radiance para grades
+extern "C" __global__ void __closesthit__radiance_grade() {
 
 }
 
-//any hit lambert para grades
-extern "C" __global__ void __anyhit__lambert_grade() {
+//any hit radiance para grades
+extern "C" __global__ void __anyhit__radiance_grade() {
 
 }
 
-//miss lambert para grades
-extern "C" __global__ void __miss__lambert_grade() {
+//miss radiance para grades
+extern "C" __global__ void __miss__radiance_grade() {
     
 }
 
-//closest hit phong para grades
-extern "C" __global__ void __closesthit__phong_grade() {
+//closest hit shadow para grades
+extern "C" __global__ void __closesthit__shadow_grade() {
 
 }
 
-//any hit phong para grades
-extern "C" __global__ void __anyhit__phong_grade() {
+//any hit shadow para grades
+extern "C" __global__ void __anyhit__shadow_grade() {
 
 }
 
-//miss phong para grades
-extern "C" __global__ void __miss__phong_grade() {
+//miss shadow para grades
+extern "C" __global__ void __miss__shadow_grade() {
 
 }
 
-//closest hit lambert para vidros
-extern "C" __global__ void __closesthit__lambert_vidro() {
+//closest hit radiance para vidros
+extern "C" __global__ void __closesthit__radiance_vidro() {
 
 }
 
-//any hit lambert para vidros
-extern "C" __global__ void __anyhit__lambert_vidro() {
+//any hit radiance para vidros
+extern "C" __global__ void __anyhit__radiance_vidro() {
 
 }
 
-//miss lambert para vidros
-extern "C" __global__ void __miss__lambert_vidro() {
+//miss radiance para vidros
+extern "C" __global__ void __miss__radiance_vidro() {
     
 }
 
-//closest hit phong para vidros
-extern "C" __global__ void __closesthit__phong_vidro() {
+//closest hit shadow para vidros
+extern "C" __global__ void __closesthit__shadow_vidro() {
 
 }
 
-//any hit phong para vidros
-extern "C" __global__ void __anyhit__phong_vidro() {
+//any hit shadow para vidros
+extern "C" __global__ void __anyhit__shadow_vidro() {
 
 }
 
-//miss phong para vidros
-extern "C" __global__ void __miss__phong_vidro() {
+//miss shadow para vidros
+extern "C" __global__ void __miss__shadow_vidro() {
 
 }
 
@@ -225,9 +226,9 @@ extern "C" __global__ void __raygen__renderFrame() {
         0.0f, // rayTime
         OptixVisibilityMask( 255 ),
         OPTIX_RAY_FLAG_DISABLE_ANYHIT,//OPTIX_RAY_FLAG_NONE,
-        SURFACE_RAY_TYPE, // SBT offset
+        PHONG_RAY_TYPE, // SBT offset
         RAY_TYPE_COUNT, // SBT stride
-        SURFACE_RAY_TYPE, // missSBTIndex
+        PHONG_RAY_TYPE, // missSBTIndex
         u0, u1 );
     
     //convert float (0-1) to int (0-255)
