@@ -34,23 +34,27 @@ extern "C" __global__ void __closesthit__radiance() {
     const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
     const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
 
-    float3 n;
+    float3 Ns;
     float3 Ng = cross(B-A,C-A);
     if(sbtData.vertexD.normal) 
-        n = make_float3((1.f-u-v) * sbtData.vertexD.normal[index.x] + u * sbtData.vertexD.normal[index.y] + v * sbtData.vertexD.normal[index.z]);
+        Ns = make_float3((1.f-u-v) * sbtData.vertexD.normal[index.x] + u * sbtData.vertexD.normal[index.y] + v * sbtData.vertexD.normal[index.z]);
     else 
-        n = Ng;
+        Ns = Ng;
     
     // intersection position
     const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
 
-    // Face forward + Normalization
-    float3 lightPos = make_float3(optixLaunchParams.global->lightPos);
-    float lDirLength = length(lPos - pos) - 0.01f;
-    float3 lightDir = normalize(lPos - pos);
-    float3 Ns = normalize(make_float3(n));
+    // Face forward + Normalizatio
+    const float3 rayDir = optixGetWorldRayDirection();
+    const float3 lightDir = normalize(make_float3(optixLaunchParams.global->lightDir));
+    if (dot(rayDir,Ng) > 0.f) Ng = -Ng;
+        Ng = normalize(Ng);
+    
+    if (dot(Ng,Ns) < 0.f)
+        Ns -= 2.f*dot(Ng,Ns)*Ng;
+    Ns = normalize(Ns);
 
-    float intensity = max(dot(lDir, Ns),0.0f);
+    float intensity = max(dot(lightDir, Ns),0.0f);
 
     // Set payload
     float lightVisibility = 1.0f;
@@ -61,10 +65,10 @@ extern "C" __global__ void __closesthit__radiance() {
                surfPos,
                lightDir,
                0.001f,      // tmin
-               lDirLength,  // tmax
+               1.0f,  // tmax
                0.0f,       // rayTime
                OptixVisibilityMask( 255 ),
-               OPTIX_RAY_FLAG_NONE
+               OPTIX_RAY_FLAG_NONE,
                SHADOW_RAY_TYPE,            // SBT offset
                RAY_TYPE_COUNT,               // SBT stride
                SHADOW_RAY_TYPE,            // missSBTIndex 
@@ -73,11 +77,12 @@ extern "C" __global__ void __closesthit__radiance() {
     // Lambert Diffuse
     float3 diffuseColor = sbtData.color;
     if (sbtData.hasTexture && sbtData.vertexD.texCoord0) {
-      const float4 tc = make_float4((1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z]);
+      const float4 tc = (1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z];
       float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
       prd = make_float3(fromTexture) * min(intensity * lightVisibility + 0.0, 1.0);
     }
 
+    
     // Final shading: ambient, directional ambient and shadowing
     const float cosDN = 0.1f + .8f*fabsf(dot(rayDir,Ns));
     prd = (.1f + (.2f + .8f*lightVisibility) * cosDN) * diffuseColor;

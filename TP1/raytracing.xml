@@ -3,7 +3,7 @@
 	<assets>
 		<scenes>
 			<scene name="MainScene" >
-				<file name="../models/rungholt/rungholt.obj" />
+				<file name="../models/LargoCamoes/largoCamoes.nbo" />
 			</scene>
 		</scenes>
 		<viewports>
