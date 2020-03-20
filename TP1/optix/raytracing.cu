@@ -16,32 +16,9 @@ extern "C" {
 // for this simple example, we have a single ray type
 enum { PHONG_RAY_TYPE = 0, SHADOW_RAY_TYPE,  RAY_TYPE_COUNT };
 
-static __forceinline__ __device__
-void *unpackPointer( uint32_t i0, uint32_t i1 )
-{
-    const uint64_t uptr = static_cast<uint64_t>( i0 ) << 32 | i1;
-    void*           ptr = reinterpret_cast<void*>( uptr ); 
-    return ptr;
-}
-
-static __forceinline__ __device__
-void  packPointer( void* ptr, uint32_t& i0, uint32_t& i1 )
-{
-    const uint64_t uptr = reinterpret_cast<uint64_t>( ptr );
-    i0 = uptr >> 32;
-    i1 = uptr & 0x00000000ffffffff;
-}
-
-template<typename T>
-static __forceinline__ __device__ T *getPRD()
-{ 
-    const uint32_t u0 = optixGetPayload_0();
-    const uint32_t u1 = optixGetPayload_1();
-    return reinterpret_cast<T*>( unpackPointer( u0, u1 ) );
-}
-
 //closest hit radiance
 extern "C" __global__ void __closesthit__radiance() {
+    
     const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
 
     // gather basic info
@@ -52,14 +29,14 @@ extern "C" __global__ void __closesthit__radiance() {
 
 
     // compute triangle normal using either shading normal or gnormal as fallback:
-    const float3 &A = sbtData.vertex[index.x];
-    const float3 &B = sbtData.vertex[index.y];
-    const float3 &C = sbtData.vertex[index.z];
+    const float3 &A = make_float3(sbtData.vertexD.position[index.x]);
+    const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
+    const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
 
     float3 Ns;
     float3 Ng = cross(B-A,C-A);
-    if(sbtData.normal) 
-        Ns = ((1.f-u-v) * sbtData.normal[index.x] + u * sbtData.normal[index.y] + v * sbtData.normal[index.z]);
+    if(sbtData.vertexD.normal) 
+        Ns = make_float3((1.f-u-v) * sbtData.vertexD.normal[index.x] + u * sbtData.vertexD.normal[index.y] + v * sbtData.vertexD.normal[index.z]);
     else 
         Ns = Ng;
     
@@ -74,14 +51,14 @@ extern "C" __global__ void __closesthit__radiance() {
 
     // Lambert Diffuse
     float3 diffuseColor = sbtData.color;
-    if (sbtData.hasTexture && sbtData.texcoord) {
-      const float2 tc = (1.f-u-v) * sbtData.texcoord[index.x] + u * sbtData.texcoord[index.y] + v * sbtData.texcoord[index.z];
+    if (sbtData.hasTexture && sbtData.vertexD.texCoord0) {
+      const float2 tc = make_float2((1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z]);
       float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
       diffuseColor *= make_float3(fromTexture);
     }
 
     // Shadow
-    const float3 surfPos = (1.f-u-v) * sbtData.vertex[index.x] + u * sbtData.vertex[index.y] + v * sbtData.vertex[index.z];
+    const float3 surfPos = make_float3((1.f-u-v) * sbtData.vertexD.position[index.x] + u * sbtData.vertexD.position[index.y] + v * sbtData.vertexD.position[index.z]);
     const float3 lightPos = make_float3(-907.108f, 2205.875f, -400.0267f);
     const float3 lightDir = lightPos - surfPos;
 
@@ -109,6 +86,7 @@ extern "C" __global__ void __closesthit__radiance() {
     const float cosDN = 0.1f + .8f*fabsf(dot(rayDir,Ns));
     float3 &prd = *(float3*)getPRD<float3>();
     prd = (.1f + (.2f + .8f*lightVisibility) * cosDN) * diffuseColor;
+    
 }
 
 //any hit radiance
