@@ -18,7 +18,8 @@ enum { PHONG_RAY_TYPE = 0, SHADOW_RAY_TYPE,  RAY_TYPE_COUNT };
 
 //closest hit radiance
 extern "C" __global__ void __closesthit__radiance() {
-    
+    float3 &prd = *(float3*)getPRD<float3>();
+
     const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
 
     // gather basic info
@@ -33,60 +34,53 @@ extern "C" __global__ void __closesthit__radiance() {
     const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
     const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
 
-    float3 Ns;
+    float3 n;
     float3 Ng = cross(B-A,C-A);
     if(sbtData.vertexD.normal) 
-        Ns = make_float3((1.f-u-v) * sbtData.vertexD.normal[index.x] + u * sbtData.vertexD.normal[index.y] + v * sbtData.vertexD.normal[index.z]);
+        n = make_float3((1.f-u-v) * sbtData.vertexD.normal[index.x] + u * sbtData.vertexD.normal[index.y] + v * sbtData.vertexD.normal[index.z]);
     else 
-        Ns = Ng;
+        n = Ng;
     
+    // intersection position
+    const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+
     // Face forward + Normalization
-    const float3 rayDir = optixGetWorldRayDirection();
-    
-    if (dot(rayDir,Ng) > 0.f) Ng = -Ng;
-    Ng = normalize(Ng);
-    
-    if (dot(Ng,Ns) < 0.f) Ns -= 2.f*dot(Ng,Ns)*Ng;
-    Ns = normalize(Ns);
+    float3 lightPos = make_float3(optixLaunchParams.global->lightPos);
+    float lDirLength = length(lPos - pos) - 0.01f;
+    float3 lightDir = normalize(lPos - pos);
+    float3 Ns = normalize(make_float3(n));
 
-    // Lambert Diffuse
-    float3 diffuseColor = sbtData.color;
-    if (sbtData.hasTexture && sbtData.vertexD.texCoord0) {
-      const float2 tc = make_float2((1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z]);
-      float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
-      diffuseColor *= make_float3(fromTexture);
-    }
+    float intensity = max(dot(lDir, Ns),0.0f);
 
-    // Shadow
-    const float3 surfPos = make_float3((1.f-u-v) * sbtData.vertexD.position[index.x] + u * sbtData.vertexD.position[index.y] + v * sbtData.vertexD.position[index.z]);
-    const float3 lightPos = make_float3(-907.108f, 2205.875f, -400.0267f);
-    const float3 lightDir = lightPos - surfPos;
-
-    // Trace Shadow Ray
+    // Set payload
     float3 lightVisibility = make_float3(0.f,0.f,0.f);
-
     uint32_t u0, u1;
     packPointer( &lightVisibility, u0, u1 );
+    //Trace shadow ray
     optixTrace(optixLaunchParams.traversable,
-               surfPos + 1e-3f * Ng,
+               surfPos,
                lightDir,
-               1e-3f,      // tmin
-               1.f-1e-3f,  // tmax
+               0.00f,      // tmin
+               lDirLength,  // tmax
                0.0f,       // rayTime
                OptixVisibilityMask( 255 ),
-               OPTIX_RAY_FLAG_DISABLE_ANYHIT
-               | OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT
-               | OPTIX_RAY_FLAG_DISABLE_CLOSESTHIT,
+               OPTIX_RAY_FLAG_NONE
                SHADOW_RAY_TYPE,            // SBT offset
                RAY_TYPE_COUNT,               // SBT stride
                SHADOW_RAY_TYPE,            // missSBTIndex 
                u0, u1 );
 
+    // Lambert Diffuse
+    float3 diffuseColor = sbtData.color;
+    if (sbtData.hasTexture && sbtData.vertexD.texCoord0) {
+      const float4 tc = make_float4((1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z]);
+      float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
+      prd = make_float3(fromTexture) * min(intensity * lightVisibility + 0.0, 1.0);
+    }
+
     // Final shading: ambient, directional ambient and shadowing
     const float cosDN = 0.1f + .8f*fabsf(dot(rayDir,Ns));
-    float3 &prd = *(float3*)getPRD<float3>();
     prd = (.1f + (.2f + .8f*lightVisibility) * cosDN) * diffuseColor;
-    
 }
 
 //any hit radiance
@@ -97,13 +91,14 @@ extern "C" __global__ void __anyhit__radiance() {
 //miss radiance
 extern "C" __global__ void __miss__radiance() {
     float3 &prd = *(float3*)getPRD<float3>();
-    // set to constant white as background color
-    prd = make_float3(1.f);
+    // set blue as background color
+    prd = make_float3(0.0f, 0.0f, 1.0f);
 }
 
 //closest hit shadow
 extern "C" __global__ void __closesthit__shadow() {
-    
+    float &prd = *(float*)getPRD<float>();
+    prd = 0.0f;
 }
 
 //any hit shadow
@@ -114,8 +109,8 @@ extern "C" __global__ void __anyhit__shadow() {
 //miss shadow
 extern "C" __global__ void __miss__shadow() {
     // we didn't hit anything, so the light is visible
-    float3 &prd = *(float3*)getPRD<float3>();
-    prd = make_float3(1.f);
+    float &prd = *(float*)getPRD<float>();
+    prd = 1.0f;
 }
 
 //closest hit radiance para grades
