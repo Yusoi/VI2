@@ -97,7 +97,7 @@ extern "C" __global__ void __anyhit__radiance() {
 extern "C" __global__ void __miss__radiance() {
     float3 &prd = *(float3*)getPRD<float3>();
     // white background color
-    prd = make_float3(1.0f, 0.0f, 0.0f);
+    prd = make_float3(1.0f, 1.0f, 1.0f);
 }
 
 //closest hit shadow
