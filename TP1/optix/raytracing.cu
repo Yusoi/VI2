@@ -53,14 +53,14 @@ extern "C" __global__ void __closesthit__radiance() {
     float intensity = max(dot(lDir, Ns),0.0f);
 
     // Set payload
-    float3 lightVisibility = make_float3(0.f,0.f,0.f);
+    float lightVisibility = 1.0f;
     uint32_t u0, u1;
     packPointer( &lightVisibility, u0, u1 );
     //Trace shadow ray
     optixTrace(optixLaunchParams.traversable,
                surfPos,
                lightDir,
-               0.00f,      // tmin
+               0.001f,      // tmin
                lDirLength,  // tmax
                0.0f,       // rayTime
                OptixVisibilityMask( 255 ),
@@ -91,8 +91,8 @@ extern "C" __global__ void __anyhit__radiance() {
 //miss radiance
 extern "C" __global__ void __miss__radiance() {
     float3 &prd = *(float3*)getPRD<float3>();
-    // set blue as background color
-    prd = make_float3(0.0f, 0.0f, 1.0f);
+    // white background color
+    prd = make_float3(1.0f, 0.0f, 0.0f);
 }
 
 //closest hit shadow
@@ -113,6 +113,37 @@ extern "C" __global__ void __miss__shadow() {
     prd = 1.0f;
 }
 
+//-----------------
+// Luzes
+extern "C" __global__ void __closesthit__light() {
+
+    float3 &prd = *(float3*)getPRD<float3>();
+    prd = make_float3(1.0f, 1.0f, 1.0f);
+}
+
+
+extern "C" __global__ void __anyhit__light() {
+}
+
+
+extern "C" __global__ void __miss__light() {
+}
+
+
+extern "C" __global__ void __closesthit__light_shadow() {
+    float &prd = *(float*)getPRD<float>();
+    prd = 1.0f;
+}
+
+// Ignore intersections
+extern "C" __global__ void __anyhit__light_shadow() {
+}
+
+// miss empty for background
+extern "C" __global__ void __miss__light_shadow() {
+}
+
+//----------
 //closest hit radiance para grades
 extern "C" __global__ void __closesthit__radiance_grade() {
 
