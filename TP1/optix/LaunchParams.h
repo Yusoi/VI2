@@ -1,4 +1,3 @@
-
 #include <stdint.h>
 #include "vec_math.h"
 
@@ -24,7 +23,7 @@ struct RayGenData {
 
 struct GlobalParams{
     float4 lightDir;
-	cudaTextureObject_t texture;
+	int jitterMode;
 } ;
 
 
@@ -52,6 +51,8 @@ struct LaunchParams
 // pack and unpack payload pointer from
 // Ingo Wald Optix 7 course
 // https://gitlab.com/ingowald/optix7course
+
+
 
 static __forceinline__ __device__
 void *unpackPointer( uint32_t i0, uint32_t i1 ) {
