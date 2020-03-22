@@ -53,7 +53,7 @@ extern "C" __global__ void __closesthit__radiance() {
     float intensity = max(dot(-lightDir, Ns),0.5f);
 
     // Set payload
-    float lightVisibility = 1.0f;
+    float lightVisibility = 0.0f;
     uint32_t u0, u1;
     packPointer( &lightVisibility, u0, u1 );
 
@@ -73,9 +73,13 @@ extern "C" __global__ void __closesthit__radiance() {
 
     // Lambert Diffuse
     if (sbtData.hasTexture && sbtData.vertexD.texCoord0) {
-      const float4 tc = (1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z];
-      float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
-      prd = make_float3(fromTexture) * min(intensity * lightVisibility, 1.0);
+        const float4 tc = (1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z];
+        float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
+        if (fromTexture.x != 1.0f && fromTexture.y != 1.0f && fromTexture.z != 1.0f) {
+            prd = make_float3(fromTexture) * min(intensity * lightVisibility, 1.0);
+        } else {
+            prd = make_float3(1.0f,1.0f,1.0f);
+        }
     }
     
     else{
@@ -93,7 +97,7 @@ extern "C" __global__ void __anyhit__radiance() {
 extern "C" __global__ void __miss__radiance() {
     float3 &prd = *(float3*)getPRD<float3>();
     // white background color
-    prd = make_float3(0.0f, 0.8f, 0.0f);    
+    prd = make_float3(1.0f, 1.0f, 1.0f);    
 }
 
 //closest hit shadow
@@ -114,7 +118,13 @@ extern "C" __global__ void __miss__shadow() {
     prd = 1.0f;
 }
 
-//----------
+
+/**
+*
+* Grades
+*
+*/
+
 //closest hit radiance para grades
 extern "C" __global__ void __closesthit__radiance_grade() {
     float3 &prd = *(float3*)getPRD<float3>();
@@ -211,8 +221,38 @@ extern "C" __global__ void __miss__radiance_grade() {
 
 //closest hit shadow para grades
 extern "C" __global__ void __closesthit__shadow_grade() {
+    // ray payload
+    float3 wall_check_PRD = make_float3(1.f);
+    uint32_t u0, u1;
+    packPointer( &wall_check_PRD, u0, u1 );  
+
+    const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+    const float3 lightDir = make_float3(optixLaunchParams.global->lightDir);
+
+    //Sends a ray in the direction of the light to check if there's a wall
+    optixTrace(optixLaunchParams.traversable,
+        surfPos,
+        -lightDir,
+        0.001f,      // tmin
+        1e20f,  // tmax
+        0.0f,       // rayTime
+        OptixVisibilityMask( 255 ),
+        OPTIX_RAY_FLAG_DISABLE_ANYHIT,
+        PHONG_RAY_TYPE,            // SBT offset
+        RAY_TYPE_COUNT,               // SBT stride
+        PHONG_RAY_TYPE,            // missSBTIndex 
+        u0, u1);
+
+        
+
     float &prd = *(float*)getPRD<float>();
-    prd = 0.5f;
+
+    // TODO: Deteta se algo é completamente branco (da cor do background) e não propriamente se falhou ou não.
+    if(wall_check_PRD.x != 1.0f && wall_check_PRD.y != 1.0f && wall_check_PRD.z != 1.0f){
+        prd = 0.5;
+    } else {
+        prd = 1.0f;
+    }
 }
 
 //any hit shadow para grades
@@ -254,8 +294,7 @@ extern "C" __global__ void __closesthit__radiance_vidro() {
     // intersection position
     const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
 
-    // ray payload
-    float3 glass_color_PRD = make_float3(1.f);
+    float3 glass_color_PRD;
     uint32_t u0, u1;
     packPointer( &glass_color_PRD, u0, u1 );  
 
@@ -284,13 +323,43 @@ extern "C" __global__ void __anyhit__radiance_vidro() {
 extern "C" __global__ void __miss__radiance_vidro() {
     float3 &prd = *(float3*)getPRD<float3>();
     // white background color
-    prd = make_float3(0.0f, 0.8f, 0.0f); 
+    prd = make_float3(1.0f, 1.0f, 1.0f); 
 }
 
 //closest hit shadow para vidros
-extern "C" __global__ void __closesthit__shadow_vidro() {
+extern "C" __global__ void __closesthit__shadow_vidro() {    
+    // ray payload
+    float3 wall_check_PRD = make_float3(1.f);
+    uint32_t u0, u1;
+    packPointer( &wall_check_PRD, u0, u1 );  
+
+    const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+    const float3 lightDir = make_float3(optixLaunchParams.global->lightDir);
+
+    //Sends a ray in the direction of the light to check if there's a wall
+    optixTrace(optixLaunchParams.traversable,
+        surfPos,
+        -lightDir,
+        0.001f,      // tmin
+        1e20f,  // tmax
+        0.0f,       // rayTime
+        OptixVisibilityMask( 255 ),
+        OPTIX_RAY_FLAG_DISABLE_ANYHIT,
+        PHONG_RAY_TYPE,            // SBT offset
+        RAY_TYPE_COUNT,               // SBT stride
+        PHONG_RAY_TYPE,            // missSBTIndex 
+        u0, u1);
+
+        
+
     float &prd = *(float*)getPRD<float>();
-    prd = 1.0f;
+
+    // TODO: Deteta se algo é completamente branco (da cor do background) e não propriamente se falhou ou não.
+    if(wall_check_PRD.x != 1.0f && wall_check_PRD.y != 1.0f && wall_check_PRD.z != 1.0f){
+        prd = 0.5;
+    } else {
+        prd = 1.0f;
+    }
 }
 
 //any hit shadow para vidros
@@ -300,8 +369,9 @@ extern "C" __global__ void __anyhit__shadow_vidro() {
 
 //miss shadow para vidros
 extern "C" __global__ void __miss__shadow_vidro() {
+
     float &prd = *(float*)getPRD<float>();
-    prd = 1.0f;
+    prd = 1.0;
 }
 
 //Ray Deployment
