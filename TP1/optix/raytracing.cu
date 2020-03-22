@@ -47,10 +47,10 @@ extern "C" __global__ void __closesthit__radiance() {
     const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
 
     // Face forward + Normalization
-    const float3 lightDir = -make_float3(optixLaunchParams.global->lightDir);
+    const float3 lightDir = make_float3(optixLaunchParams.global->lightDir);
     float3 Ns = normalize(n);
 
-    float intensity = max(dot(lightDir, Ns),0.5f);
+    float intensity = max(dot(-lightDir, Ns),0.5f);
 
     // Set payload
     float lightVisibility = 1.0f;
@@ -60,13 +60,12 @@ extern "C" __global__ void __closesthit__radiance() {
     //Trace shadow ray
     optixTrace(optixLaunchParams.traversable,
                surfPos,
-               lightDir,
+               -lightDir,
                0.001f,      // tmin
                1e20f,  // tmax
                0.0f,       // rayTime
                OptixVisibilityMask( 255 ),
-               OPTIX_RAY_FLAG_DISABLE_ANYHIT
-               | OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT,
+               OPTIX_RAY_FLAG_DISABLE_ANYHIT,
                SHADOW_RAY_TYPE,            // SBT offset
                RAY_TYPE_COUNT,               // SBT stride
                SHADOW_RAY_TYPE,            // missSBTIndex 
@@ -105,7 +104,7 @@ extern "C" __global__ void __closesthit__shadow() {
 
 //any hit shadow
 extern "C" __global__ void __anyhit__shadow() {
-
+    //Not to fill, direct lighting
 }
 
 //miss shadow
@@ -123,7 +122,7 @@ extern "C" __global__ void __closesthit__radiance_grade() {
 
 //any hit radiance para grades
 extern "C" __global__ void __anyhit__radiance_grade() {
-
+    //Not to fill, direct lighting
 }
 
 //miss radiance para grades
@@ -139,7 +138,7 @@ extern "C" __global__ void __closesthit__shadow_grade() {
 
 //any hit shadow para grades
 extern "C" __global__ void __anyhit__shadow_grade() {
-
+    //Not to fill, direct lighting
 }
 
 //miss shadow para grades
@@ -158,28 +157,66 @@ extern "C" __global__ void __miss__shadow_grade() {
 
 //closest hit radiance para vidros
 extern "C" __global__ void __closesthit__radiance_vidro() {
+    float3 &prd = *(float3*)getPRD<float3>();
 
+    const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
+
+    // gather basic info
+    const int primID = optixGetPrimitiveIndex();
+    const uint3 index = sbtData.index[primID];
+    const float u = optixGetTriangleBarycentrics().x;
+    const float v = optixGetTriangleBarycentrics().y;
+
+    // compute triangle normal using either shading normal or gnormal as fallback:
+    const float3 &A = make_float3(sbtData.vertexD.position[index.x]);
+    const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
+    const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
+
+    // intersection position
+    const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+
+    // ray payload
+    float3 glass_color_PRD = make_float3(1.f);
+    uint32_t u0, u1;
+    packPointer( &glass_color_PRD, u0, u1 );  
+
+    optixTrace(optixLaunchParams.traversable,
+        surfPos,
+        optixGetWorldRayDirection(),
+        0.001f,      // tmin
+        1e20f,  // tmax
+        0.0f,       // rayTime
+        OptixVisibilityMask( 255 ),
+        OPTIX_RAY_FLAG_DISABLE_ANYHIT,
+        PHONG_RAY_TYPE,            // SBT offset
+        RAY_TYPE_COUNT,               // SBT stride
+        PHONG_RAY_TYPE,            // missSBTIndex 
+        u0, u1);
+
+    prd = glass_color_PRD;
 }
 
 //any hit radiance para vidros
 extern "C" __global__ void __anyhit__radiance_vidro() {
-
+    //Not to fill, direct lighting
 }
 
 //miss radiance para vidros
 extern "C" __global__ void __miss__radiance_vidro() {
-
+    float3 &prd = *(float3*)getPRD<float3>();
+    // white background color
+    prd = make_float3(0.0f, 0.1f, 0.0f); 
 }
 
 //closest hit shadow para vidros
 extern "C" __global__ void __closesthit__shadow_vidro() {
     float &prd = *(float*)getPRD<float>();
-    prd = 0.5f;
+    prd = 1.0f;
 }
 
 //any hit shadow para vidros
 extern "C" __global__ void __anyhit__shadow_vidro() {
-
+    //Not to fill, direct lighting
 }
 
 //miss shadow para vidros
