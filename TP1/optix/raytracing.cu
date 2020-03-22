@@ -232,10 +232,10 @@ extern "C" __global__ void __closesthit__shadow_grade() {
     float &prd = *(float*)getPRD<float>();
 
     // TODO: Deteta se algo é completamente branco (da cor do background) e não propriamente se falhou ou não.
-    if(wall_check_PRD.x != 1.0f && wall_check_PRD.y != 1.0f && wall_check_PRD.z != 1.0f){
-        prd = 0.5;
-    } else {
+    if(wall_check_PRD.x == 1.0f && wall_check_PRD.y == 1.0f && wall_check_PRD.z == 1.0f){
         prd = 1.0f;
+    } else {
+        prd = 0.5f;
     }
 }
 
@@ -339,10 +339,10 @@ extern "C" __global__ void __closesthit__shadow_vidro() {
     float &prd = *(float*)getPRD<float>();
 
     // TODO: Deteta se algo é completamente branco (da cor do background) e não propriamente se falhou ou não.
-    if(wall_check_PRD.x != 1.0f && wall_check_PRD.y != 1.0f && wall_check_PRD.z != 1.0f){
-        prd = 0.5;
-    } else {
+    if(wall_check_PRD.x == 1.0f && wall_check_PRD.y == 1.0f && wall_check_PRD.z == 1.0f){
         prd = 1.0f;
+    } else {
+        prd = 0.5f;
     }
 }
 
