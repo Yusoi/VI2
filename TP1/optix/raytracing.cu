@@ -44,7 +44,7 @@ extern "C" __global__ void __closesthit__radiance() {
         n = Ng;
     
     // intersection position
-    const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+    const float3 pos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
 
     // Face forward + Normalization
     const float3 lightDir = make_float3(optixLaunchParams.global->lightDir);
@@ -59,7 +59,7 @@ extern "C" __global__ void __closesthit__radiance() {
 
     //Trace shadow ray
     optixTrace(optixLaunchParams.traversable,
-               surfPos,
+               pos,
                -lightDir,
                0.001f,      // tmin
                1e20f,  // tmax
@@ -150,7 +150,7 @@ extern "C" __global__ void __closesthit__radiance_grade() {
         n = Ng;
     
     // intersection position
-    const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+    const float3 pos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
 
     // Face forward + Normalization
     const float3 lightDir = make_float3(optixLaunchParams.global->lightDir);
@@ -174,7 +174,7 @@ extern "C" __global__ void __closesthit__radiance_grade() {
     packPointer( &lightVisibility, u0, u1 ); 
 
     optixTrace(optixLaunchParams.traversable,
-        surfPos,
+        pos,
         rayDir,
         0.001f,      // tmin
         1e20f,  // tmax
@@ -254,6 +254,102 @@ extern "C" __global__ void __miss__shadow_grade() {
 
 /**
 *
+* Azulejo
+*
+*/
+
+//closest hit radiance para azulejos
+extern "C" __global__ void __closesthit__radiance_azulejo() {
+    float3 &prd = *(float3*)getPRD<float3>();
+
+    const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
+
+    // gather basic info
+    const int primID = optixGetPrimitiveIndex();
+    const uint3 index = sbtData.index[primID];
+    const float u = optixGetTriangleBarycentrics().x;
+    const float v = optixGetTriangleBarycentrics().y;
+
+    // compute triangle normal using either shading normal or gnormal as fallback:
+    const float3 &A = make_float3(sbtData.vertexD.position[index.x]);
+    const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
+    const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
+
+    float3 n;
+    float3 Ng = cross(B-A,C-A);
+    if(sbtData.vertexD.normal) 
+        n = make_float3((1.f-u-v) * sbtData.vertexD.normal[index.x] + u * sbtData.vertexD.normal[index.y] + v * sbtData.vertexD.normal[index.z]);
+    else 
+        n = Ng;
+    
+    // intersection position
+    const float3 pos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+
+    // Face forward + Normalization
+    const float3 lightDir = make_float3(optixLaunchParams.global->lightDir);
+    float3 Ns = normalize(n);
+
+    float intensity = max(dot(-lightDir, Ns),0.5f);
+
+    const float4 tc = (1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z];
+    float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
+    
+    float3 rayDir = reflect(optixGetWorldRayDirection(), Ns);
+
+    // Phong
+    // ray payload
+    float3 lightVisibility = make_float3(1.f);
+    uint32_t u0, u1;
+    packPointer( &lightVisibility, u0, u1 ); 
+
+    optixTrace(optixLaunchParams.traversable,
+        pos,
+        rayDir,
+        0.04f,      // tmin
+        1e20f,  // tmax
+        0.0f,       // rayTime
+        OptixVisibilityMask( 255 ),
+        OPTIX_RAY_FLAG_NONE,
+        PHONG_RAY_TYPE,            // SBT offset
+        RAY_TYPE_COUNT,               // SBT stride
+        PHONG_RAY_TYPE,            // missSBTIndex 
+        u0, u1);
+    
+        prd = make_float3(fromTexture) * lightVisibility;
+}
+
+//any hit radiance para azulejos
+extern "C" __global__ void __anyhit__radiance_azulejo() {
+    //Not to fill, direct lighting
+}
+
+//miss radiance para azulejos
+extern "C" __global__ void __miss__radiance_azulejo() {
+    
+}
+
+//closest hit shadow para azulejos
+extern "C" __global__ void __closesthit__shadow_azulejo() {
+    float &prd = *(float*)getPRD<float>();
+    prd = 0.5f;
+}
+
+//any hit shadow para azulejos
+extern "C" __global__ void __anyhit__shadow_azulejo() {
+    //Not to fill, direct lighting
+}
+
+//miss shadow para azulejos
+extern "C" __global__ void __miss__shadow_azulejo() {
+    //TODO
+    // we didn't hit anything, so the light is visible
+    float &prd = *(float*)getPRD<float>();
+    prd = 1.0f;
+}
+
+
+/**
+*
 *   VIDRO
 *
 */
@@ -276,14 +372,14 @@ extern "C" __global__ void __closesthit__radiance_vidro() {
     const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
 
     // intersection position
-    const float3 surfPos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+    const float3 pos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
 
     float3 glass_color_PRD;
     uint32_t u0, u1;
     packPointer( &glass_color_PRD, u0, u1 );  
 
     optixTrace(optixLaunchParams.traversable,
-        surfPos,
+        pos,
         optixGetWorldRayDirection(),
         0.001f,      // tmin
         1e20f,  // tmax
