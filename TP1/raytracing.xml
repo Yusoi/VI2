@@ -94,6 +94,21 @@
                             <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__shadow_grade"/> 
                         </rayType>
                     </rtMap>
+
+					<rtMap to = "Azulejo*">
+                        <rayType name="Phong">
+                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__radiance_azulejo"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__radiance_azulejo"/> 
+                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__radiance_azulejo"/> 
+                        </rayType>
+
+                        <rayType name="Shadow">
+                            <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__shadow_azulejo"/> 
+                            <rtProgram type="CLOSEST_HIT" file="optix/raytracing.ptx" proc="__closesthit__shadow_azulejo"/> 
+                            <rtProgram type="MISS" 		 file="optix/raytracing.ptx" proc="__miss__shadow_azulejo"/> 
+                        </rayType>
+                    </rtMap>
+
                     <rtMap to = "Vidro">
                         <rayType name="Phong">
                             <rtProgram type="ANY_HIT" file="optix/raytracing.ptx" proc="__anyhit__radiance_vidro"/> 
