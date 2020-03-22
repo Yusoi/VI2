@@ -150,53 +150,37 @@ extern "C" __global__ void __closesthit__radiance_grade() {
 
     const float4 tc = (1.f-u-v) * sbtData.vertexD.texCoord0[index.x] + u * sbtData.vertexD.texCoord0[index.y] + v * sbtData.vertexD.texCoord0[index.z];
     float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
-    // Lambert Diffuse
-    if (sbtData.hasTexture && sbtData.vertexD.texCoord0 && fromTexture.x != 1.0f && fromTexture.y != 1.0f && fromTexture.z != 1.0f) {
-
-        // Set payload
-        float lightVisibility = 1.0f;
-        uint32_t u0, u1;
-        packPointer( &lightVisibility, u0, u1 );
-
-        //Trace shadow ray
-        optixTrace(optixLaunchParams.traversable,
-            surfPos,
-            -lightDir,
-            0.001f,      // tmin
-            1e20f,  // tmax
-            0.0f,       // rayTime
-            OptixVisibilityMask( 255 ),
-            OPTIX_RAY_FLAG_DISABLE_ANYHIT,
-            SHADOW_RAY_TYPE,            // SBT offset
-            RAY_TYPE_COUNT,               // SBT stride
-            SHADOW_RAY_TYPE,            // missSBTIndex 
-            u0, u1 );
-
-        prd = make_float3(fromTexture) * min(intensity * lightVisibility, 1.0);
-
-    } else {
-
-         // ray payload
-        float3 glass_color_PRD = make_float3(1.f);
-        uint32_t u0, u1;
-        packPointer( &glass_color_PRD, u0, u1 ); 
-
-        optixTrace(optixLaunchParams.traversable,
-            surfPos,
-            optixGetWorldRayDirection(),
-            0.001f,      // tmin
-            1e20f,  // tmax
-            0.0f,       // rayTime
-            OptixVisibilityMask( 255 ),
-            OPTIX_RAY_FLAG_DISABLE_ANYHIT,
-            PHONG_RAY_TYPE,            // SBT offset
-            RAY_TYPE_COUNT,               // SBT stride
-            PHONG_RAY_TYPE,            // missSBTIndex 
-            u0, u1);
     
-        prd = glass_color_PRD;
+    float3 rayDir;
+    if (sbtData.hasTexture && sbtData.vertexD.texCoord0 && fromTexture.x != 1.0f && fromTexture.y != 1.0f && fromTexture.z != 1.0f)
+        rayDir = reflect(optixGetWorldRayDirection(), Ns);
 
-    }
+    else
+        rayDir = optixGetWorldRayDirection();
+    // Phong
+    // ray payload
+    float3 lightVisibility = make_float3(1.f);
+    uint32_t u0, u1;
+    packPointer( &lightVisibility, u0, u1 ); 
+
+    optixTrace(optixLaunchParams.traversable,
+        surfPos,
+        rayDir,
+        0.001f,      // tmin
+        1e20f,  // tmax
+        0.0f,       // rayTime
+        OptixVisibilityMask( 255 ),
+        OPTIX_RAY_FLAG_DISABLE_ANYHIT,
+        PHONG_RAY_TYPE,            // SBT offset
+        RAY_TYPE_COUNT,               // SBT stride
+        PHONG_RAY_TYPE,            // missSBTIndex 
+        u0, u1);
+    
+    if (sbtData.hasTexture && sbtData.vertexD.texCoord0 && fromTexture.x != 1.0f && fromTexture.y != 1.0f && fromTexture.z != 1.0f)
+        prd = make_float3(fromTexture) * lightVisibility;
+
+    else 
+        prd = lightVisibility;
 }
 
 //any hit radiance para grades
