@@ -17,6 +17,17 @@ extern "C" {
 // for this simple example, we have a single ray type
 enum { PHONG_RAY_TYPE = 0, SHADOW_RAY_TYPE, RAY_TYPE_COUNT };
 
+struct colorPRD{
+    float3 color;
+    unsigned int seed;
+} ;
+
+struct shadowPRD{
+    float shadowAtt;
+    unsigned int seed;
+} ;
+
+
 /**
 *
 * Default Material
@@ -25,7 +36,83 @@ enum { PHONG_RAY_TYPE = 0, SHADOW_RAY_TYPE, RAY_TYPE_COUNT };
 
 //closest hit radiance
 extern "C" __global__ void __closesthit__radiance() {
-    float3 &prd = *(float*)getPRD<float>();
+    colorPRD &prd = *(colorPRD *)getPRD<colorPRD>();
+
+    const TriangleMeshSBTData &sbtData = *(const TriangleMeshSBTData*)optixGetSbtDataPointer();
+
+    // gather basic info
+    const int primID = optixGetPrimitiveIndex();
+    const uint3 index = sbtData.index[primID];
+    const float u = optixGetTriangleBarycentrics().x;
+    const float v = optixGetTriangleBarycentrics().y;
+
+
+    // compute triangle normal using either shading normal or gnormal as fallback:
+    const float3 &A = make_float3(sbtData.vertexD.position[index.x]);
+    const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
+    const float3 &C = make_float3(sbtData.vertexD.position[index.z]);
+
+    float3 n;
+    float3 Ng = cross(B-A,C-A);
+    if(sbtData.vertexD.normal) 
+        n = make_float3((1.f-u-v) * sbtData.vertexD.normal[index.x] + u * sbtData.vertexD.normal[index.y] + v * sbtData.vertexD.normal[index.z]);
+    else 
+        n = Ng;
+    
+    // intersection position
+    const float3 pos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
+
+    // Face forward + Normalization
+    const float3 lightDir = make_float3(optixLaunchParams.global->lightDir);
+    float3 Ns = normalize(n);
+
+    float intensity = max(dot(-lightDir, Ns),0.5f);
+
+    //payload
+    shadowPRD shadowAttPRD;
+    shadowAttPRD.shadowAtt = 1.0f;
+    shadowAttPRD.seed = prd.seed;
+    uint32_t u0, u1;
+    packPointer(&shadowAttPRD,u0,u1);
+
+    // Trace ray
+    int rays = optixLaunchParams.frame.raysPerPixel;
+    float shadowTotal = 0.0f;
+    for (int i = 0; i < rays; ++i) {
+        for (int j = 0; j < rays; ++j) {
+            lPos.x = -0.2 + i * 1.0/rays * 0.4f + rnd(prd.seed) * 1.0/rays * 0.4;
+            lPos.z = -0.2 + j * 1.0/rays * 0.4f + rnd(prd.seed) * 1.0/rays * 0.4;
+            lDir = normalize(lPos - pos);
+            optixTrace(optixLaunchParams.traversable,
+                pos,
+                lDir,
+                0.00001f,           // tmin
+                10,                 // tmax
+                0.0f,               // rayTime
+                OptixVisibilityMask( 255 ),
+                OPTIX_RAY_FLAG_NONE, //OPTIX_RAY_FLAG_NONE,
+                SHADOW,             // SBT offset
+                RAY_TYPE_COUNT,     // SBT stride
+                SHADOW,             // missSBTIndex 
+                u0, u1 );
+
+                shadowTotal += shadowAttPRD.shadowAtt;
+        }
+    }
+    shadowTotal /= (rays * rays);
+
+    // Diffuse
+    if (sbtData.hasTexture && sbtData.vertexD.texCoord0) {  
+        const float4 tc
+          = (1.f-u-v) * sbtData.vertexD.texCoord0[index.x]
+          +         u * sbtData.vertexD.texCoord0[index.y]
+          +         v * sbtData.vertexD.texCoord0[index.z];
+        
+        float4 fromTexture = tex2D<float4>(sbtData.texture,tc.x,tc.y);
+        prd.color = make_float3(fromTexture) * min(intensity * shadowTotal + 0.0, 1.0);
+    }
+    else
+        prd.color = sbtData.color * min(intensity * shadowTotal + 0.0, 1.0);
 }
 
 //any hit radiance
@@ -34,13 +121,15 @@ extern "C" __global__ void __anyhit__radiance() {
 
 //miss radiance
 extern "C" __global__ void __miss__radiance() {   
-    float3 &prd = *(float*)getPRD<float>();
+    colorPRD &prd = *(colorPRD*)getPRD<colorPRD>();
+    prd.color = make_float3(0.0f, 0.0f, 1.0f);
 
 }
 
 //closest hit shadow
 extern "C" __global__ void __closesthit__shadow() {
-    float &prd = *(float*)getPRD<float>();
+    shadowPRD &prd = *(shadowPRD*)getPRD<shadowPRD>();
+    prd.shadowAtt = 0.0f;
 }
 
 //any hit shadow
@@ -49,7 +138,8 @@ extern "C" __global__ void __anyhit__shadow() {
 
 //miss shadow
 extern "C" __global__ void __miss__shadow() {
-    float &prd = *(float*)getPRD<float>();
+    shadowPRD &prd = *(shadowPRD*)getPRD<shadowPRD>();
+    prd.shadowAtt = 1.0f;
 }
 
 /**
@@ -73,13 +163,13 @@ extern "C" __global__ void __raygen__renderFrame() {
             printf("Nau Ray-Tracing Debug\n");
             printf("LightPos: %f, %f %f %f\n", ld.x,ld.y,ld.z,ld.w);
             printf("Launch dim: %u %u\n", optixGetLaunchDimensions().x, optixGetLaunchDimensions().y);
-            printf("Rays per pixel squared: %d \n", optixLaunchParams.frame.raysPerPixel);
+            printf("Rays per pixel raysd: %d \n", optixLaunchParams.frame.raysPerPixel);
             printf("===========================================\n");
         }
     
     
         // ray payload
-        float3 pixelColorPRD = make_float3(1.f);
+        colorPRD pixelColorPRD = make_float3(1.f);
         uint32_t u0, u1;
         packPointer( &pixelColorPRD, u0, u1 );  
         float red = 0.0f, blue = 0.0f, green = 0.0f;
