@@ -1,9 +1,9 @@
 <?xml version="1.0" ?>
-<project name="Optix Test" width=1024 height=512>
+<project name="SSAO" width=1024 height=512>
 	<assets>
 		<scenes>
 			<scene name="MainScene" >
-				<file name="../models/LargoCamoes/largoCamoes.nbo" />
+				<file name="../models/dragon/dragon.obj" />
 			</scene>
 		</scenes>
 		<viewports>
@@ -22,8 +22,8 @@
 			<camera name="MainCamera" >
 				<viewport name="LeftViewport" />
 				<projection TYPE="PERSPECTIVE" FOV=60.0 NEAR=1.0 FAR=10000.0 />
-				<POSITION x="-40.593395" y="32.43354" z="-1.299236" />
-				<VIEW x="0.901307" y="-0.361665" z="-0.238421" /> 
+				<POSITION x="-1.370" y="1.373" z="-0.310" />
+				<VIEW x="0.720" y="-0.667" z="0.193" /> 
 				<UP x="0.0" y="1.0" z="0.0" />
 			</camera>
 		</cameras>
@@ -55,7 +55,6 @@
 				<rtRayTypes>
 					<rayType name="Phong" />
 					<rayType name="Shadow" />
-					<rayType name="Sample" />
 				</rtRayTypes>
 
 				<rtVertexAttributes>
@@ -78,12 +77,6 @@
 						<rtProgram type="ANY_HIT" file="optix/ssao.ptx" proc="__anyhit__shadow" /> 
 						<rtProgram type="CLOSEST_HIT" file="optix/ssao.ptx" proc="__closesthit__shadow" /> 
 						<rtProgram type="MISS" 		 file="optix/ssao.ptx" proc="__miss__shadow" /> 
-					</rayType>
-
-					<rayType name="Sample">
-						<rtProgram type="ANY_HIT" file="optix/ssao.ptx" proc="__anyhit__sample" /> 
-						<rtProgram type="CLOSEST_HIT" file="optix/ssao.ptx" proc="__closesthit__sample" /> 
-						<rtProgram type="MISS" 		 file="optix/ssao.ptx" proc="__miss__sample" /> 
 					</rayType>
 				</rtDefaultMaterial>
 
@@ -110,4 +103,8 @@
 
 		</pipeline>
 	</pipelines>
+	<interface label="Settings">
+		<var label="Squared rays per pixel" type ="PASS" context="ssao#pass1" component="RAYS_PER_PIXEL"
+				def="min=1 max=10"/>
+	</interface>
 </project>

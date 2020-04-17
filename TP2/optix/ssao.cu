@@ -76,30 +76,32 @@ extern "C" __global__ void __closesthit__radiance() {
     packPointer(&shadowAttPRD,u0,u1);
 
     // Trace ray
-    int rays = optixLaunchParams.frame.raysPerPixel;
+    int sample_rays = 4;
     float shadowTotal = 0.0f;
-    for (int i = 0; i < rays; ++i) {
-        for (int j = 0; j < rays; ++j) {
-            lPos.x = -0.2 + i * 1.0/rays * 0.4f + rnd(prd.seed) * 1.0/rays * 0.4;
-            lPos.z = -0.2 + j * 1.0/rays * 0.4f + rnd(prd.seed) * 1.0/rays * 0.4;
+    float3 lPos = make_float3(0.0f);
+    float3 lDir = make_float3(0.0f);
+    for (int i = 0; i < sample_rays; ++i) {
+        for (int j = 0; j < sample_rays; ++j) {
+            lPos.x = -0.2 + i * 1.0/sample_rays * 0.4f + rnd(prd.seed) * 1.0/sample_rays * 0.4;
+            lPos.z = -0.2 + j * 1.0/sample_rays * 0.4f + rnd(prd.seed) * 1.0/sample_rays * 0.4;
             lDir = normalize(lPos - pos);
             optixTrace(optixLaunchParams.traversable,
                 pos,
-                lDir,
+                -lDir,
                 0.00001f,           // tmin
-                10,                 // tmax
+                1.0f,                 // tmax
                 0.0f,               // rayTime
                 OptixVisibilityMask( 255 ),
                 OPTIX_RAY_FLAG_NONE, //OPTIX_RAY_FLAG_NONE,
-                SHADOW,             // SBT offset
+                SHADOW_RAY_TYPE,             // SBT offset
                 RAY_TYPE_COUNT,     // SBT stride
-                SHADOW,             // missSBTIndex 
+                SHADOW_RAY_TYPE,             // missSBTIndex 
                 u0, u1 );
 
-                shadowTotal += shadowAttPRD.shadowAtt;
+            shadowTotal += shadowAttPRD.shadowAtt;
         }
     }
-    shadowTotal /= (rays * rays);
+    shadowTotal /= (sample_rays * sample_rays);
 
     // Diffuse
     if (sbtData.hasTexture && sbtData.vertexD.texCoord0) {  
@@ -161,25 +163,24 @@ extern "C" __global__ void __raygen__renderFrame() {
             // print info to console
             printf("===========================================\n");
             printf("Nau Ray-Tracing Debug\n");
-            printf("LightPos: %f, %f %f %f\n", ld.x,ld.y,ld.z,ld.w);
             printf("Launch dim: %u %u\n", optixGetLaunchDimensions().x, optixGetLaunchDimensions().y);
-            printf("Rays per pixel raysd: %d \n", optixLaunchParams.frame.raysPerPixel);
+            printf("Rays per pixel: %d \n", optixLaunchParams.frame.raysPerPixel);
             printf("===========================================\n");
         }
     
     
         // ray payload
-        colorPRD pixelColorPRD = make_float3(1.f);
+        float3 pixelColorPRD = make_float3(1.f);
         uint32_t u0, u1;
         packPointer( &pixelColorPRD, u0, u1 );  
         float red = 0.0f, blue = 0.0f, green = 0.0f;
         
-        float raysPerPixel = 2;//float(optixLaunchParams.frame.raysPerPixel);
+        float raysPerPixel = 3;//float(optixLaunchParams.frame.raysPerPixel);
 
         for(int i = 0; i < raysPerPixel; i++){
             for(int j = 0; j < raysPerPixel; j++){
                 float2 subpixel_jitter;
-                uint_32_t seed = tea<4>(ix * optixGetLaunchDimensions().x + iy, i * raysPerPixel + j);
+                uint32_t seed = tea<4>(ix * optixGetLaunchDimensions().x + iy, i * raysPerPixel + j);
                 
                 subpixel_jitter = make_float2(rnd(seed)-0.5f,rnd(seed)-0.5f);
 
