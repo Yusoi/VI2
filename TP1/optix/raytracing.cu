@@ -36,7 +36,6 @@ extern "C" __global__ void __closesthit__radiance() {
     const float u = optixGetTriangleBarycentrics().x;
     const float v = optixGetTriangleBarycentrics().y;
 
-
     // compute triangle normal using either shading normal or gnormal as fallback:
     const float3 &A = make_float3(sbtData.vertexD.position[index.x]);
     const float3 &B = make_float3(sbtData.vertexD.position[index.y]);
@@ -48,7 +47,7 @@ extern "C" __global__ void __closesthit__radiance() {
         n = make_float3((1.f-u-v) * sbtData.vertexD.normal[index.x] + u * sbtData.vertexD.normal[index.y] + v * sbtData.vertexD.normal[index.z]);
     else 
         n = Ng;
-    
+        
     // intersection position
     const float3 pos = optixGetWorldRayOrigin() + optixGetRayTmax()*optixGetWorldRayDirection();
 

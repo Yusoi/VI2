@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<project name="Optix Test - Depth of Field" width=1024 height=1024>
+<project name="Depth of Field" width=1024 height=1024>
 	<assets>
         <attributes>
             <attribute type="PASS" name="FOCAL_DISTANCE" data="FLOAT" value = "2.0" />
@@ -9,8 +9,8 @@
        </attributes>
 		<scenes>
 			<scene name="MainScene" >
-				<!--file name="../../../models/sponza/crytek-sponza/sponza.nbo" /-->
-				<file name="../../../models/LargoCamoes/largoCamoes.nbo" />
+				<file name="../models/sponza/crytek-sponza/sponza.nbo" />
+				<!--file name="../../../models/LargoCamoes/largoCamoes.nbo" /-->
 				<!--file name="../../../models/SanMiguel/san-miguel.nbo" /-->
                 <!--file name="../../../models/cornellBox/CornellBox-Sphere2.obj" /-->
 			</scene>
@@ -35,11 +35,11 @@
 			</light>
 		</lights>
 		<materialLibs>   
-			<materialLib filename="optix.mlib"/>
+			<materialLib filename="dof.mlib"/>
 		</materialLibs>
 	</assets>
 	<pipelines>
-		<pipeline name="optix" default="true" defaultCamera="MainCamera">
+		<pipeline name="dof" default="true" defaultCamera="MainCamera">
 			<pass class="rt" name="pass1">
 				<scenes>
 					<scene name="MainScene" />
@@ -63,58 +63,20 @@
 				</rtVertexAttributes>
 
 				<rtEntryPoint>
-					<rayGen file="optix.ptx" proc="__raygen__renderFrame"/> 
+					<rayGen file="optix/dof.ptx" proc="__raygen__renderFrame"/> 
 				</rtEntryPoint>
 				<rtDefaultMaterial>
 					<rayType name="Phong">
-						<rtProgram type="ANY_HIT" file="optix.ptx" proc="__anyhit__radiance"/> 
-						<rtProgram type="CLOSEST_HIT" file="optix.ptx" proc="__closesthit__radiance"/> 
-						<rtProgram type="MISS" 		 file="optix.ptx" proc="__miss__radiance"/> 
+						<rtProgram type="ANY_HIT" file="optix/dof.ptx" proc="__anyhit__radiance"/> 
+						<rtProgram type="CLOSEST_HIT" file="optix/dof.ptx" proc="__closesthit__radiance"/> 
+						<rtProgram type="MISS" 		 file="optix/dof.ptx" proc="__miss__radiance"/> 
 					</rayType>
 					<rayType name="Shadow">
-						<rtProgram type="ANY_HIT" file="optix.ptx" proc="__anyhit__shadow"/> 
-						<rtProgram type="CLOSEST_HIT" file="optix.ptx" proc="__closesthit__shadow"/> 
-						<rtProgram type="MISS" 		 file="optix.ptx" proc="__miss__shadow"/> 
+						<rtProgram type="ANY_HIT" file="optix/dof.ptx" proc="__anyhit__shadow"/> 
+						<rtProgram type="CLOSEST_HIT" file="optix/dof.ptx" proc="__closesthit__shadow"/> 
+						<rtProgram type="MISS" 		 file="optix/dof.ptx" proc="__miss__shadow"/> 
 					</rayType>
 				</rtDefaultMaterial>
-                <rtMaterialMap>
-                    <rtMap to = "light">
-                        <rayType name="Phong">
-                            <rtProgram type="ANY_HIT" file="optix.ptx" proc="__anyhit__light"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix.ptx" proc="__closesthit__light"/> 
-                            <rtProgram type="MISS" 		 file="optix.ptx" proc="__miss__light"/> 
-                        </rayType>
-                        <rayType name="Shadow">
-                            <rtProgram type="ANY_HIT" file="optix.ptx" proc="__anyhit__light_shadow"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix.ptx" proc="__closesthit__light_shadow"/> 
-                            <rtProgram type="MISS" 		 file="optix.ptx" proc="__miss__shadow"/> 
-                        </rayType>
-                    </rtMap>
-                    <rtMap to = "rightSphere">
-                        <rayType name="Phong">
-                            <rtProgram type="ANY_HIT" file="optix.ptx" proc="__anyhit__phong_glass"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix.ptx" proc="__closesthit__phong_glass"/> 
-                            <rtProgram type="MISS" 		 file="optix.ptx" proc="__miss__phong_glass"/> 
-                        </rayType>
-                        <rayType name="Shadow">
-                            <rtProgram type="ANY_HIT" file="optix.ptx" proc="__anyhit__shadow_glass"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix.ptx" proc="__closesthit__shadow_glass"/> 
-                            <rtProgram type="MISS" 		 file="optix.ptx" proc="__miss__shadow"/> 
-                        </rayType>
-                    </rtMap>
-                    <rtMap to = "leftSphere">
-                        <rayType name="Phong">
-                            <rtProgram type="ANY_HIT" file="optix.ptx" proc="__anyhit__radiance"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix.ptx" proc="__closesthit__phong_metal"/> 
-                            <rtProgram type="MISS" 		 file="optix.ptx" proc="__miss__radiance"/> 
-                        </rayType>
-                        <rayType name="Shadow">
-                            <rtProgram type="ANY_HIT" file="optix.ptx" proc="__anyhit__shadow"/> 
-                            <rtProgram type="CLOSEST_HIT" file="optix.ptx" proc="__closesthit__shadow"/> 
-                            <rtProgram type="MISS" 		 file="optix.ptx" proc="__miss__shadow"/> 
-                        </rayType>
-                    </rtMap>
-                </rtMaterialMap>
                 <rtGlobalParams>
                     <param name="lightPos" type="LIGHT" context="CURRENT" id=0 component="POSITION" />
                     <param name="focalDistance" type="PASS" context="CURRENT" component="FOCAL_DISTANCE" />
@@ -130,13 +92,13 @@
 	</pipelines>
     <interface>
         <window label="settings">
-            <var label="Squared rays per pixel" type="PASS" context="optix#pass1" component="RAYS_PER_PIXEL"
+            <var label="Squared rays per pixel" type="PASS" context="dof#pass1" component="RAYS_PER_PIXEL"
                 def="min=1 max=10" />
-            <var label="Aperture" type="PASS" context="optix#pass1" component="APERTURE"
+            <var label="Aperture" type="PASS" context="dof#pass1" component="APERTURE"
                 def="min=0 max=0.5" />
-            <var label="Lens distance" type="PASS" context="optix#pass1" component="DISTANCE_TO_LENS"
+            <var label="Lens distance" type="PASS" context="dof#pass1" component="DISTANCE_TO_LENS"
                 def="min=0.1 max=10" />
-            <var label="Distance to focal plane" type="PASS" context="optix#pass1" component="FOCAL_DISTANCE"
+            <var label="Distance to focal plane" type="PASS" context="dof#pass1" component="FOCAL_DISTANCE"
                 def="min=0.001 max=10" />
 
         </window>
