@@ -150,6 +150,9 @@ extern "C" __global__ void __raygen__renderFrame() {
         
         float raysPerPixel = float(optixLaunchParams.frame.raysPerPixel);
 
+        const float2 screen(make_float2(ix+.5f,iy+.5f)
+                        / make_float2(optixGetLaunchDimensions().x, optixGetLaunchDimensions().y) * 2.0 - 1.0);
+
         //Lens variables
         float aperture = optixLaunchParams.global->aperture;
         float focalDistance = optixLaunchParams.global->focalDistance;
@@ -157,36 +160,41 @@ extern "C" __global__ void __raygen__renderFrame() {
 
         //1st step: Calculate focal plane point. "Shoots a ray" from the center of the lens to the image
         //To get the focal point, di (distance from the lens to the image) needs to the the same as dp (distance from the lens to the camera)
-        float dp = lensDistance;
-        float3 lensCenter = camera.position + camera.direction * dp;
-        //float3 focalPoint = 
+        float dP = lensDistance;
+        float3 lensCenter = camera.position + camera.direction * dP;
+        float3 screenPixelPos = camera.position + screen.x * camera.horizontal + screen.y * camera.vertical;
 
-
+        //Calcular a distância da lente ao plano focal
+        float dO = (dP*focalDistance)/(dP-focalDistance); //Derivado de 1/d0 = 1/f - 1/di
+        /**
+        * Encontrar ponto focal (Calcular o ponto de interseção da reta saída do pixel e que passa pelo centro da lente com o plano focal).
+        * A reta nunca vai estar contida no plano pois a lente é paralela ao plano de focagem e só aconteceria se a câmara estivesse no mesmo sítio que a lente e a distância de focagem fosse 0.
+        * Logo, seguindo este snippet: https://stackoverflow.com/questions/5666222/3d-line-plane-intersection
+        * A normal do plano de focagem corresponde à direção da câmara. 
+        * Um dos pontos do plano poderá ser o ponto diretamente em frente ao centro da lente, representado pela posição da câmara mais as duas distâncias vezes o vetor da direção da câmara.
+        * Um dos pontos da linha será o centro da lente.
+        */
+        float t = (dot(camera.direction,camera.position+(dO+dP)*camera.direction) - dot(camera.direction,screenPixelPos)) / dot(camera.direction,normalize(lensCenter-screenPixelPos)) ;
+        float3 focalPoint = screenPixelPos + normalize(lensCenter-screenPixelPos) * t; 
+        
+        /*
+        if ( (ix == 0 && iy == 0) || (ix == 600 && iy == 600)) {
+            printf("X: %u, Y: %u\nCamera Position: %f %f %f\nScreen: %f %f\nCamera Horizontal %f %f %f\nCamera Vertical: %f %f %f\nScreen Pixel Position: %f %f %f\n",ix,iy,camera.position.x,camera.position.y,camera.position.z,screen.x,screen.y,camera.horizontal.x,camera.horizontal.y,camera.horizontal.z,camera.vertical.x,camera.vertical.y,camera.vertical.z,screenPixelPos.x,screenPixelPos.y,screenPixelPos.z);
+        }
+        */
 
         for(int i = 0; i < raysPerPixel; i++){
             for(int j = 0; j < raysPerPixel; j++){
-                float2 subpixel_jitter;
                 uint32_t seed = tea<4>(ix * optixGetLaunchDimensions().x + iy, i * raysPerPixel + j);
-                
-                subpixel_jitter = make_float2(rnd(seed)-0.5f,rnd(seed)-0.5f);
-
-                const float2 screen(make_float2(ix + subpixel_jitter.x,iy + subpixel_jitter.y)
-                                / make_float2(optixGetLaunchDimensions().x, optixGetLaunchDimensions().y) * 2.0 - 1.0);
-        
-                if ( (ix == 0 && iy == 0) || (ix == 1000 && iy == 1000)) {
-                    printf("X: %u, Y: %u, Camera Position: %f %f %f\n",ix,iy,camera.position.x,camera.position.y,camera.position.z);
-                }
+                float2 randomCirclePoint = make_float2(rnd(seed)*2.0-1.0, rnd(seed)*2.0-1.0);
 
                 //TODO: Generate a random point in the lens
-                float3 curLensPoint = make_float3(0.0f,0.0f,0.0f);
+                float3 curLensPoint = lensCenter + randomCirclePoint.x * aperture/2 * camera.horizontal + randomCirclePoint.y * aperture/2 * camera.vertical;
 
                 // note: nau already takes into account the field of view and ratio when computing 
                 // camera horizontal and vertical
-                flaot3 rayDir = normalize(focalPoint - curLensPoint);
-                /*float3 rayDir = normalize(camera.direction
-                                        + (screen.x ) * camera.horizontal
-                                        + (screen.y ) * camera.vertical);*/
-                                        
+                float3 rayDir = normalize(focalPoint - curLensPoint);
+                
                 // trace primary ray
                 optixTrace(optixLaunchParams.traversable,
                         lensCenter,
@@ -200,6 +208,7 @@ extern "C" __global__ void __raygen__renderFrame() {
                         RAY_TYPE_COUNT,               // SBT stride
                         PHONG_RAY_TYPE,             // missSBTIndex 
                         u0, u1 );
+                        
         
                 red += pixelColorPRD.x/(raysPerPixel*raysPerPixel);
                 green += pixelColorPRD.y/(raysPerPixel*raysPerPixel);
@@ -207,8 +216,6 @@ extern "C" __global__ void __raygen__renderFrame() {
             }
         }
 
-        
-    
         //convert float (0-1) to int (0-255)
         const int r = int(255.0f*red);
         const int g = int(255.0f*green);
