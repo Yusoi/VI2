@@ -166,6 +166,7 @@ extern "C" __global__ void __raygen__renderFrame() {
 
         //Calcular a distância da lente ao plano focal
         float dO = (dP*focalDistance)/(dP-focalDistance); //Derivado de 1/d0 = 1/f - 1/di
+
         /**
         * Encontrar ponto focal (Calcular o ponto de interseção da reta saída do pixel e que passa pelo centro da lente com o plano focal).
         * A reta nunca vai estar contida no plano pois a lente é paralela ao plano de focagem e só aconteceria se a câmara estivesse no mesmo sítio que a lente e a distância de focagem fosse 0.
@@ -197,7 +198,7 @@ extern "C" __global__ void __raygen__renderFrame() {
                 
                 // trace primary ray
                 optixTrace(optixLaunchParams.traversable,
-                        lensCenter,
+                        curLensPoint,
                         rayDir,
                         0.f,    // tmin
                         1e10f,  // tmax
