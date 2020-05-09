@@ -17,13 +17,4 @@
 			</colors>
 		</renderTarget>
 	</renderTargets>
-
-	<textures>
-		<texture name="dataBuffer">
-			<WIDTH value=256 />
-			<HEIGHT value=256 />
-			<INTERNAL_FORMAT value="RGBA32F" />
-		</texture>	
-        <texture name="pedra" filename = "../../models/Texturas/crate.jpg" />
-	</textures>
 </materialLib>
