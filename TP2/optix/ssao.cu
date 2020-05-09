@@ -89,13 +89,13 @@ extern "C" __global__ void __closesthit__radiance() {
                 pos,
                 -lDir,
                 0.00001f,           // tmin
-                1.0f,                 // tmax
+                1.0f,               // tmax
                 0.0f,               // rayTime
                 OptixVisibilityMask( 255 ),
                 OPTIX_RAY_FLAG_NONE, //OPTIX_RAY_FLAG_NONE,
-                SHADOW_RAY_TYPE,             // SBT offset
+                SHADOW_RAY_TYPE,    // SBT offset
                 RAY_TYPE_COUNT,     // SBT stride
-                SHADOW_RAY_TYPE,             // missSBTIndex 
+                SHADOW_RAY_TYPE,    // missSBTIndex 
                 u0, u1 );
 
             shadowTotal += shadowAttPRD.shadowAtt;
