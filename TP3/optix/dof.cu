@@ -135,6 +135,11 @@ extern "C" __global__ void __raygen__renderFrame() {
             printf("Rays per pixel: %d \n", optixLaunchParams.frame.raysPerPixel);
             printf("===========================================\n");
         }
+
+        /*
+        if((ix == 0 && iy == 0 )||(ix == 200 && iy == 200) || (ix == 600 && iy == 600)){
+            printf("X: %u, Y: %u, Camera Position: %f %f %f\n",ix,iy,camera.position.x,camera.position.y,camera.position.z);
+        }*/
     
     
         // ray payload
@@ -144,6 +149,19 @@ extern "C" __global__ void __raygen__renderFrame() {
         float red = 0.0f, blue = 0.0f, green = 0.0f;
         
         float raysPerPixel = float(optixLaunchParams.frame.raysPerPixel);
+
+        //Lens variables
+        float aperture = optixLaunchParams.global->aperture;
+        float focalDistance = optixLaunchParams.global->focalDistance;
+        float lensDistance = optixLaunchParams.global->lensDistance;
+
+        //1st step: Calculate focal plane point. "Shoots a ray" from the center of the lens to the image
+        //To get the focal point, di (distance from the lens to the image) needs to the the same as dp (distance from the lens to the camera)
+        float dp = lensDistance;
+        float3 lensCenter = camera.position + camera.direction * dp;
+        //float3 focalPoint = 
+
+
 
         for(int i = 0; i < raysPerPixel; i++){
             for(int j = 0; j < raysPerPixel; j++){
@@ -155,15 +173,23 @@ extern "C" __global__ void __raygen__renderFrame() {
                 const float2 screen(make_float2(ix + subpixel_jitter.x,iy + subpixel_jitter.y)
                                 / make_float2(optixGetLaunchDimensions().x, optixGetLaunchDimensions().y) * 2.0 - 1.0);
         
+                if ( (ix == 0 && iy == 0) || (ix == 1000 && iy == 1000)) {
+                    printf("X: %u, Y: %u, Camera Position: %f %f %f\n",ix,iy,camera.position.x,camera.position.y,camera.position.z);
+                }
+
+                //TODO: Generate a random point in the lens
+                float3 curLensPoint = make_float3(0.0f,0.0f,0.0f);
+
                 // note: nau already takes into account the field of view and ratio when computing 
                 // camera horizontal and vertical
-                float3 rayDir = normalize(camera.direction
+                flaot3 rayDir = normalize(focalPoint - curLensPoint);
+                /*float3 rayDir = normalize(camera.direction
                                         + (screen.x ) * camera.horizontal
-                                        + (screen.y ) * camera.vertical);
-                    
+                                        + (screen.y ) * camera.vertical);*/
+                                        
                 // trace primary ray
                 optixTrace(optixLaunchParams.traversable,
-                        camera.position,
+                        lensCenter,
                         rayDir,
                         0.f,    // tmin
                         1e10f,  // tmax
